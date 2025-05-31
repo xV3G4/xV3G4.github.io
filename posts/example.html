@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Understanding Buffer Overflows: A Deep Dive - xV3G4</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Fira+Code:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Additional styles for blog post */
+        .post-header {
+            padding: 150px 0 50px 0;
+            background: var(--secondary-bg);
+            text-align: center;
+        }
+        
+        .post-title {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+        
+        .post-meta-info {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .post-content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 50px 20px;
+            background: var(--primary-bg);
+        }
+        
+        .post-content h2 {
+            color: var(--primary-red);
+            margin: 2rem 0 1rem 0;
+            font-size: 1.8rem;
+        }
+        
+        .post-content h3 {
+            color: var(--text-primary);
+            margin: 1.5rem 0 1rem 0;
+            font-size: 1.4rem;
+        }
+        
+        .post-content p {
+            margin-bottom: 1.5rem;
+            line-height: 1.8;
+            color: var(--text-secondary);
+        }
+        
+        .post-content code {
+            background: var(--card-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: var(--font-code);
+            color: var(--primary-red);
+        }
+        
+        .post-content pre {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 10px;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-color);
+        }
+        
+        .post-content pre code {
+            background: none;
+            padding: 0;
+            color: var(--text-primary);
+        }
+        
+        .back-to-blog {
+            text-align: center;
+            margin: 3rem 0;
+        }
+        
+        .back-btn {
+            color: var(--primary-red);
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .back-btn:hover {
+            gap: 12px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Matrix Rain Background -->
+    <canvas id="matrix-rain"></canvas>
+    
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <a href="../index.html" style="text-decoration: none; color: inherit;">
+                    <span class="logo-bracket">[</span>
+                    <span class="logo-text">xV3G4</span>
+                    <span class="logo-bracket">]</span>
+                </a>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="../index.html#home" class="nav-link">Home</a></li>
+                <li><a href="../index.html#about" class="nav-link">About</a></li>
+                <li><a href="../index.html#skills" class="nav-link">Skills</a></li>
+                <li><a href="../index.html#projects" class="nav-link">Projects</a></li>
+                <li><a href="../blog.html" class="nav-link active">Blog</a></li>
+                <li><a href="../index.html#contact" class="nav-link">Contact</a></li>
+            </ul>
+            <div class="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Post Header -->
+    <section class="post-header">
+        <div class="container">
+            <h1 class="post-title">Understanding Buffer Overflows: A Deep Dive</h1>
+            <div class="post-meta-info">
+                <div class="post-date">
+                    <i class="fas fa-calendar"></i>
+                    <span>May 31, 2024</span>
+                </div>
+                <div class="post-category">
+                    <i class="fas fa-tag"></i>
+                    <span>Tutorial</span>
+                </div>
+                <div class="read-time">
+                    <i class="fas fa-clock"></i>
+                    <span>10 min read</span>
+                </div>
+            </div>
+            <div class="post-tags">
+                <span>Buffer Overflow</span>
+                <span>Exploitation</span>
+                <span>Security</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Post Content -->
+    <div class="post-content">
+        <h2>Introduction</h2>
+        <p>Buffer overflow vulnerabilities remain one of the most critical security issues in software development. These vulnerabilities have been responsible for countless security breaches and continue to be a significant concern in modern cybersecurity.</p>
+        
+        <p>In this comprehensive guide, we'll explore how buffer overflows work, how to identify them, and most importantly, how to prevent them from occurring in your applications.</p>
+
+        <h2>What is a Buffer Overflow?</h2>
+        <p>A buffer overflow occurs when a program writes more data to a buffer than it can hold. This excess data overwrites adjacent memory locations, potentially corrupting data, crashing the program, or allowing an attacker to execute malicious code.</p>
+
+        <h3>Example of Vulnerable Code</h3>
+        <pre><code>#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main() {
+    char buffer[10];
+    char input[] = "This string is definitely longer than 10 characters";
+    
+    strcpy(buffer, input); // Vulnerable to buffer overflow!
+    
+    printf("Buffer contents: %s\n", buffer);
+    return 0;
+}</code></pre>
+
+        <h2>How Buffer Overflows Work</h2>
+        <p>When a buffer overflow occurs, the program writes data beyond the allocated buffer space. This can overwrite:</p>
+        <ul>
+            <li>Local variables</li>
+            <li>Function return addresses</li>
+            <li>Function pointers</li>
+            <li>Other critical program data</li>
+        </ul>
+
+        <h2>Exploitation Techniques</h2>
+        <p>Attackers can exploit buffer overflows to:</p>
+        <ul>
+            <li><strong>Execute arbitrary code:</strong> By overwriting the return address with the address of malicious code</li>
+            <li><strong>Bypass security controls:</strong> By modifying variables that control access</li>
+            <li><strong>Cause denial of service:</strong> By crashing the application</li>
+        </ul>
+
+        <h2>Prevention Techniques</h2>
+        <p>Several techniques can help prevent buffer overflow vulnerabilities:</p>
+
+        <h3>1. Use Safe Functions</h3>
+        <pre><code>// Instead of strcpy(), use strncpy()
+strncpy(buffer, input, sizeof(buffer) - 1);
+buffer[sizeof(buffer) - 1] = '\0';
+
+// Instead of gets(), use fgets()
+fgets(buffer, sizeof(buffer), stdin);</code></pre>
+
+        <h3>2. Bounds Checking</h3>
+        <p>Always validate input length before copying data to buffers:</p>
+        <pre><code>if (strlen(input) < sizeof(buffer)) {
+    strcpy(buffer, input);
+} else {
+    printf("Input too long!\n");
+    return -1;
+}</code></pre>
+
+        <h3>3. Use Modern Languages</h3>
+        <p>Consider using memory-safe languages like Python, Java, or Rust that provide automatic bounds checking.</p>
+
+        <h2>Detection Tools</h2>
+        <p>Several tools can help detect buffer overflow vulnerabilities:</p>
+        <ul>
+            <li><strong>Static Analysis:</strong> Clang Static Analyzer, Coverity</li>
+            <li><strong>Dynamic Analysis:</strong> Valgrind, AddressSanitizer</li>
+            <li><strong>Fuzzing:</strong> AFL, libFuzzer</li>
+        </ul>
+
+        <h2>Conclusion</h2>
+        <p>Buffer overflows remain a significant threat in cybersecurity. By understanding how they work and implementing proper prevention techniques, developers can create more secure applications. Always remember to validate input, use safe functions, and employ automated tools to detect potential vulnerabilities.</p>
+
+        <p>Stay vigilant, and always prioritize security in your development process!</p>
+
+        <div class="back-to-blog">
+            <a href="../blog.html" class="back-btn">
+                <i class="fas fa-arrow-left"></i>
+                Back to Blog
+            </a>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 xV3G4. Built with passion for cybersecurity.</p>
+            <p>
+                <span class="footer-bracket">[</span>
+                Stay curious, stay secure
+                <span class="footer-bracket">]</span>
+            </p>
+        </div>
+    </footer>
+
+    <script src="../script.js"></script>
+</body>
+</html>
